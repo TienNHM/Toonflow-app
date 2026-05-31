@@ -382,7 +382,16 @@ var init_serverLog = __esm({
       bindAudioFail: (assetId, e) => console.error(`[bindAudio] asset ${assetId} failed:`, e),
       extractAssetsFail: (group, e) => console.error(`[extractAssets] group=[${group}] failed:`, e),
       deleteManualFail: (dir, e) => console.error("[Delete visual manual] failed:", dir, e),
-      saveFlowSortFail: (e) => console.error("[SaveFlow] storyboard sort update failed", e)
+      saveFlowSortFail: (e) => console.error("[SaveFlow] storyboard sort update failed", e),
+      skillAlreadyActive: (name28) => console.log(`[Skill] already active, skip: "${name28}"`),
+      skillFileRead: (path32, chars) => console.log(`[Skill] read main file: ${path32} (${chars} chars)`),
+      skillFileMissing: (path32) => console.log(`[Skill] read failed, file not found: ${path32}`),
+      skillActivated: (name28) => console.log(`[Skill] activated: "${name28}"`),
+      skillResourceEmptyPath: () => console.log("[Skill] read_skill_file: filePath is empty"),
+      skillResourcePathDenied: (filePath) => console.log(`[Skill] path denied (outside skills dir): "${filePath}"`),
+      skillResourceRead: (filePath, chars) => console.log(`[Skill] read resource: ${filePath} (${chars} chars)`),
+      skillResourceMissing: (filePath) => console.log(`[Skill] resource not found: "${filePath}"`),
+      electronServeStartFail: (err) => console.error("[Electron] service start failed:", err)
     };
   }
 });
@@ -80440,6 +80449,7 @@ var init_initDB = __esm({
     "use strict";
     init_dist_node();
     init_embedding();
+    init_serverLog();
     initDB_default = async (knex3, forceInit = false) => {
       const tables = [
         // 用户表
@@ -82163,14 +82173,14 @@ A medium tracking shot follows the woman from behind as she ascends and approach
         if (!tableExists || forceInit) {
           if (tableExists && forceInit) {
             await knex3.schema.dropTable(t.name);
-            console.log("[\u521D\u59CB\u5316\u6570\u636E\u5E93] \u5DF2\u5B58\u5728\u8868\u5220\u9664\u5E76\u91CD\u5EFA:", t.name);
+            serverLog.initDbRecreate(t.name);
           } else {
-            console.log("[\u521D\u59CB\u5316\u6570\u636E\u5E93] \u521B\u5EFA\u6570\u636E\u8868:", t.name);
+            serverLog.initDbCreate(t.name);
           }
           await knex3.schema.createTable(t.name, t.builder);
           if (t.initData) {
             await t.initData(knex3);
-            console.log("[\u521D\u59CB\u5316\u6570\u636E\u5E93] \u8868\u6570\u636E\u521D\u59CB\u5316:", t.name);
+            serverLog.initDbSeed(t.name);
           }
         }
       }
@@ -242784,6 +242794,7 @@ var init_deleteDirectorManual = __esm({
     init_zod();
     init_responseFormat();
     init_middleware();
+    init_serverLog();
     router94 = import_express94.default.Router();
     deleteDirectorManual_default = router94.post(
       "/",
@@ -242805,7 +242816,7 @@ var init_deleteDirectorManual = __esm({
             }
             await import_promises5.default.rm(artPromptsDir, { recursive: true, force: true });
           } catch (e) {
-            console.error("[\u5220\u9664\u89C6\u89C9\u624B\u518C] \u5220\u9664\u5931\u8D25:", artPromptsDir, e);
+            serverLog.deleteManualFail(artPromptsDir, e);
           }
           res.status(200).send(success3({ message: "\u5220\u9664\u6210\u529F" }));
         } catch (err) {
@@ -242827,6 +242838,7 @@ var init_deleteVisualManual = __esm({
     init_zod();
     init_responseFormat();
     init_middleware();
+    init_serverLog();
     router95 = import_express95.default.Router();
     deleteVisualManual_default = router95.post(
       "/",
@@ -242848,7 +242860,7 @@ var init_deleteVisualManual = __esm({
             }
             await import_promises6.default.rm(artPromptsDir, { recursive: true, force: true });
           } catch (e) {
-            console.error("[\u5220\u9664\u89C6\u89C9\u624B\u518C] \u5220\u9664\u5931\u8D25:", artPromptsDir, e);
+            serverLog.deleteManualFail(artPromptsDir, e);
           }
           res.status(200).send(success3({ message: "\u5220\u9664\u6210\u529F" }));
         } catch (err) {
@@ -242869,6 +242881,7 @@ var init_delProject = __esm({
     init_zod();
     init_responseFormat();
     init_middleware();
+    init_serverLog();
     router96 = import_express96.default.Router();
     delProject_default = router96.post(
       "/",
@@ -242905,9 +242918,9 @@ var init_delProject = __esm({
         await utils_default.db("memories").where("isolationKey", "like", `${id}:%`).delete();
         try {
           await utils_default.oss.deleteDirectory(`${id}/`);
-          console.log(`\u9879\u76EE ${id} \u7684OSS\u6587\u4EF6\u5939\u5220\u9664\u6210\u529F`);
+          serverLog.projectOssDeleted(id);
         } catch (error73) {
-          console.log(`\u9879\u76EE ${id} \u6CA1\u6709\u5BF9\u5E94\u7684OSS\u6587\u4EF6\u5939\uFF0C\u8DF3\u8FC7\u5220\u9664`);
+          serverLog.projectOssSkipped(id);
         }
         res.status(200).send(success3({ message: "\u5220\u9664\u9879\u76EE\u6210\u529F" }));
       }
@@ -256890,6 +256903,68 @@ init_is_path_inside();
 init_getPath();
 var fs10 = __toESM(require("fs"));
 var import_fast_glob2 = __toESM(require_out4());
+init_serverLog();
+
+// src/utils/runtimeLocale.ts
+function getSocketLocale(socket) {
+  const raw = socket.handshake.auth?.locale;
+  return typeof raw === "string" && raw.length > 0 ? raw : "zh-CN";
+}
+function isViLocale(locale) {
+  return locale.toLowerCase().startsWith("vi");
+}
+
+// src/utils/agentSkillStrings.ts
+function skillStrings(locale) {
+  if (isViLocale(locale)) {
+    return {
+      missingFrontmatter: "File skill thi\u1EBFu frontmatter h\u1EE3p l\u1EC7 (--- v\u1EDBi name v\xE0 description).",
+      missingNameOrDesc: "File skill thi\u1EBFu tr\u01B0\u1EDDng name ho\u1EB7c description trong frontmatter.",
+      mainSkillMissing: (path32) => `Kh\xF4ng t\xECm th\u1EA5y file skill ch\xEDnh: ${path32}`,
+      invalidSkillPath: (path32) => `T\xEAn skill kh\xF4ng h\u1EE3p l\u1EC7 (path traversal): ${path32}`,
+      skillAlreadyActive: (name28) => `Skill "${name28}" \u0111\xE3 k\xEDch ho\u1EA1t, kh\xF4ng c\u1EA7n t\u1EA3i l\u1EA1i`,
+      skillNotFound: (name28) => `Kh\xF4ng t\xECm th\u1EA5y skill "${name28}"`,
+      emptySkillBody: "File skill kh\xF4ng c\xF3 n\u1ED9i dung.",
+      emptyResource: "File t\xE0i nguy\xEAn tr\u1ED1ng.",
+      filePathRequired: "filePath kh\xF4ng \u0111\u01B0\u1EE3c \u0111\u1EC3 tr\u1ED1ng",
+      pathDenied: "Access denied: path is outside skill directory",
+      fileNotFound: (filePath) => `File not found: ${filePath}`,
+      activateSkillDesc: (names) => `K\xEDch ho\u1EA1t skill, t\u1EA3i h\u01B0\u1EDBng d\u1EABn \u0111\u1EA7y \u0111\u1EE7. Skill kh\u1EA3 d\u1EE5ng: ${names}`,
+      readSkillFileDesc: "\u0110\u1ECDc file t\xE0i nguy\xEAn trong th\u01B0 m\u1EE5c skill \u0111\xE3 k\xEDch ho\u1EA1t (\u0111\u01B0\u1EDDng d\u1EABn t\u1EEB skill_resources).",
+      skillPromptIntro: `## Skills
+C\xE1c skill sau cung c\u1EA5p h\u01B0\u1EDBng d\u1EABn cho t\xE1c v\u1EE5 chuy\xEAn bi\u1EC7t.
+Khi t\xE1c v\u1EE5 kh\u1EDBp m\xF4 t\u1EA3 skill, g\u1ECDi activate_skill v\u1EDBi t\xEAn skill \u0111\u1EC3 t\u1EA3i h\u01B0\u1EDBng d\u1EABn \u0111\u1EA7y \u0111\u1EE7.
+Sau khi t\u1EA3i, l\xE0m theo skill; d\xF9ng read_skill_file khi c\u1EA7n \u0111\u1ECDc t\xE0i nguy\xEAn.
+
+`,
+      useReadSkillFile: "D\xF9ng read_skill_file \u0111\u1EC3 \u0111\u1ECDc file t\xE0i nguy\xEAn.\n"
+    };
+  }
+  return {
+    missingFrontmatter: "\u6280\u80FD\u6587\u4EF6\u7F3A\u5C11\u6709\u6548\u7684 frontmatter\uFF0C\u786E\u4FDD\u4EE5 --- \u5305\u88F9\u5E76\u5305\u542B name \u548C description \u5B57\u6BB5\u3002",
+    missingNameOrDesc: "\u6280\u80FD\u6587\u4EF6\u7F3A\u5C11\u5FC5\u8981\u5B57\u6BB5: name \u6216 description\uFF0C\u786E\u4FDD frontmatter \u5305\u542B\u8FD9\u4E24\u4E2A\u5B57\u6BB5\u3002",
+    mainSkillMissing: (path32) => `\u4E3B\u6280\u80FD\u6587\u4EF6\u4E0D\u5B58\u5728: ${path32}`,
+    invalidSkillPath: (path32) => `\u6280\u80FD\u540D\u79F0\u65E0\u6548\uFF1A\u68C0\u6D4B\u5230\u8DEF\u5F84\u7A7F\u8D8A\u3002${path32}`,
+    skillAlreadyActive: (name28) => `\u6280\u80FD "${name28}" \u5DF2\u6FC0\u6D3B\uFF0C\u65E0\u9700\u91CD\u590D\u52A0\u8F7D`,
+    skillNotFound: (name28) => `\u672A\u627E\u5230\u6280\u80FD "${name28}"`,
+    emptySkillBody: "\u8BE5\u6280\u80FD\u6587\u4EF6\u65E0\u6B63\u6587\u5185\u5BB9\u3002",
+    emptyResource: "\u8BE5\u8D44\u6E90\u6587\u4EF6\u4E3A\u7A7A\u3002",
+    filePathRequired: "filePath \u4E0D\u80FD\u4E3A\u7A7A",
+    pathDenied: "Access denied: path is outside skill directory",
+    fileNotFound: (filePath) => `File not found: ${filePath}`,
+    activateSkillDesc: (names) => `\u6FC0\u6D3B\u4E00\u4E2A\u6280\u80FD\uFF0C\u52A0\u8F7D\u5176\u5B8C\u6574\u6307\u4EE4\u548C\u6346\u7ED1\u8D44\u6E90\u5217\u8868\u5230\u4E0A\u4E0B\u6587\u3002\u53EF\u7528\u6280\u80FD\uFF1A${names}`,
+    readSkillFileDesc: "\u8BFB\u53D6\u5DF2\u6FC0\u6D3B\u6280\u80FD\u76EE\u5F55\u4E0B\u7684\u8D44\u6E90\u6587\u4EF6\u3002\u4F20\u5165 activate_skill \u8FD4\u56DE\u7684 skill_resources \u4E2D\u7684\u6587\u4EF6\u8DEF\u5F84\u3002",
+    skillPromptIntro: `## Skills
+\u4EE5\u4E0B\u6280\u80FD\u63D0\u4F9B\u4E86\u4E13\u4E1A\u4EFB\u52A1\u7684\u4E13\u7528\u6307\u4EE4\u3002
+\u5F53\u4EFB\u52A1\u4E0E\u67D0\u4E2A\u6280\u80FD\u7684\u63CF\u8FF0\u5339\u914D\u65F6\uFF0C\u8C03\u7528 activate_skill \u5DE5\u5177\u5E76\u4F20\u5165\u6280\u80FD\u540D\u79F0\u6765\u52A0\u8F7D\u5B8C\u6574\u6307\u4EE4\u3002
+\u52A0\u8F7D\u540E\u9075\u5FAA\u6280\u80FD\u6307\u4EE4\u6267\u884C\u4EFB\u52A1\uFF0C\u9700\u8981\u65F6\u8C03\u7528 read_skill_file \u8BFB\u53D6\u8D44\u6E90\u6587\u4EF6\u5185\u5BB9\u3002
+
+`,
+    useReadSkillFile: "\u4F7F\u7528 read_skill_file \u5DE5\u5177\u8BFB\u53D6\u8D44\u6E90\u6587\u4EF6\u3002\n"
+  };
+}
+
+// src/utils/agent/skillsTools.ts
 function toUnixPath(filePath) {
   return filePath.replace(/\\/g, "/");
 }
@@ -256897,10 +256972,11 @@ function ensureNonEmptyBody(body, fallback) {
   const trimmed = body.trim();
   return trimmed.length > 0 ? trimmed : fallback;
 }
-function parseFrontmatter(content) {
+function parseFrontmatter(content, locale = "zh-CN") {
+  const s = skillStrings(locale);
   const match = content.match(/^\uFEFF?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/);
   if (!match?.[1]) {
-    throw new Error(`\u6280\u80FD\u6587\u4EF6\u7F3A\u5C11\u6709\u6548\u7684 frontmatter\uFF0C\u786E\u4FDD\u4EE5 --- \u5305\u88F9\u5E76\u5305\u542B name \u548C description \u5B57\u6BB5\u3002${content}`);
+    throw new Error(`${s.missingFrontmatter}${content}`);
   }
   const result = {};
   const lines = match[1].split(/\r?\n/);
@@ -256947,18 +257023,29 @@ function parseFrontmatter(content) {
     result[key] = unquoted;
   }
   if (!result.name || !result.description) {
-    throw new Error(`\u6280\u80FD\u6587\u4EF6\u7F3A\u5C11\u5FC5\u8981\u5B57\u6BB5: name \u6216 description\uFF0C\u786E\u4FDD frontmatter \u5305\u542B\u8FD9\u4E24\u4E2A\u5B57\u6BB5\u3002${content}`);
+    throw new Error(`${s.missingNameOrDesc}${content}`);
   }
   return { name: result.name, description: result.description };
 }
-function createSkillTools(skills, skillPaths, rootDir = getPath_default("skills")) {
+function buildSkillPrompt(skills, locale = "zh-CN") {
+  const s = skillStrings(locale);
+  const skillEntries = skills.map((sk) => `  <skill>
+    <name>${sk.name}</name>
+    <description>${sk.description}</description>
+  </skill>`).join("\n");
+  return `${s.skillPromptIntro}<available_skills>
+${skillEntries}
+</available_skills>`;
+}
+function createSkillTools(skills, skillPaths, rootDir = getPath_default("skills"), locale = "zh-CN") {
+  const s = skillStrings(locale);
   const activated = /* @__PURE__ */ new Set();
   const skillsRootDir = import_path9.default.resolve(rootDir);
-  const skillNames = skills.map((s) => s.name);
-  const skillMap = new Map(skillPaths.mainSkill.map((s) => [s.name, s]));
+  const skillNames = skills.map((s2) => s2.name);
+  const skillMap = new Map(skillPaths.mainSkill.map((s2) => [s2.name, s2]));
   return {
     activate_skill: tool({
-      description: `\u6FC0\u6D3B\u4E00\u4E2A\u6280\u80FD\uFF0C\u52A0\u8F7D\u5176\u5B8C\u6574\u6307\u4EE4\u548C\u6346\u7ED1\u8D44\u6E90\u5217\u8868\u5230\u4E0A\u4E0B\u6587\u3002\u53EF\u7528\u6280\u80FD\uFF1A${skillNames.join(", ")}`,
+      description: s.activateSkillDesc(skillNames.join(", ")),
       inputSchema: jsonSchema(
         external_exports.object({
           name: external_exports.enum(skillNames).describe("\u8981\u6FC0\u6D3B\u7684\u6280\u80FD\u540D\u79F0")
@@ -256966,26 +257053,26 @@ function createSkillTools(skills, skillPaths, rootDir = getPath_default("skills"
       ),
       execute: async ({ name: name28 }) => {
         if (activated.has(name28)) {
-          console.log(`\u26A1[\u4E3B\u6280\u80FD] \u2139\uFE0F \u6280\u80FD "${name28}" \u5DF2\u6FC0\u6D3B\uFF0C\u8DF3\u8FC7\u91CD\u590D\u6CE8\u5165`);
-          return { alreadyActive: true, message: `\u6280\u80FD "${name28}" \u5DF2\u6FC0\u6D3B\uFF0C\u65E0\u9700\u91CD\u590D\u52A0\u8F7D` };
+          serverLog.skillAlreadyActive(name28);
+          return { alreadyActive: true, message: s.skillAlreadyActive(name28) };
         }
         const matched = skillMap.get(name28);
-        if (!matched) return { error: `\u672A\u627E\u5230\u6280\u80FD "${name28}"` };
+        if (!matched) return { error: s.skillNotFound(name28) };
         let raw = "";
         try {
           raw = await fs10.promises.readFile(matched.path, "utf-8");
-          console.log(`\u26A1[\u4E3B\u6280\u80FD] \u2713 \u5DF2\u8BFB\u53D6\u4E3B\u6280\u80FD\u6587\u4EF6\uFF1A ${matched.path}\uFF08${raw.length} \u5B57\u7B26\uFF09`);
-        } catch (error73) {
-          console.log(`\u26A1[\u4E3B\u6280\u80FD] \u2717 \u8BFB\u53D6\u5931\u8D25\uFF1A\u672A\u627E\u5230\u6587\u4EF6 "${matched.path}"`);
+          serverLog.skillFileRead(matched.path, raw.length);
+        } catch {
+          serverLog.skillFileMissing(matched.path);
         }
         activated.add(name28);
-        console.log(`\u26A1[\u4E3B\u6280\u80FD] \u2713 \u6280\u80FD "${name28}" \u5DF2\u6FC0\u6D3B`);
-        const body = ensureNonEmptyBody(raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""), "\u8BE5\u6280\u80FD\u6587\u4EF6\u65E0\u6B63\u6587\u5185\u5BB9\u3002");
+        serverLog.skillActivated(name28);
+        const body = ensureNonEmptyBody(raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""), s.emptySkillBody);
         let content = "";
         content = `<skill_content name="${name28}">
 `;
         content += body + "\n\n";
-        content += "\u4F7F\u7528 read_skill_file \u5DE5\u5177\u8BFB\u53D6\u8D44\u6E90\u6587\u4EF6\u3002\n";
+        content += s.useReadSkillFile;
         if (skillPaths.secondarySkills.length > 0) {
           content += "\n<skill_resources>\n";
           for (const path32 of skillPaths.secondarySkills) {
@@ -256999,7 +257086,7 @@ function createSkillTools(skills, skillPaths, rootDir = getPath_default("skills"
       }
     }),
     read_skill_file: tool({
-      description: "\u8BFB\u53D6\u5DF2\u6FC0\u6D3B\u6280\u80FD\u76EE\u5F55\u4E0B\u7684\u8D44\u6E90\u6587\u4EF6\u3002\u4F20\u5165 activate_skill \u8FD4\u56DE\u7684 skill_resources \u4E2D\u7684\u6587\u4EF6\u8DEF\u5F84\u3002",
+      description: s.readSkillFileDesc,
       inputSchema: jsonSchema(
         external_exports.object({
           filePath: external_exports.string().describe("\u8D44\u6E90\u6587\u4EF6\u7684\u76F8\u5BF9\u8DEF\u5F84\uFF0C\u6765\u81EA activate_skill \u8FD4\u56DE\u7684 skill_resources")
@@ -257008,28 +257095,28 @@ function createSkillTools(skills, skillPaths, rootDir = getPath_default("skills"
       execute: async ({ filePath }) => {
         const normalizedInputPath = toUnixPath(filePath).trim();
         if (!normalizedInputPath) {
-          console.log(`\u{1F4D6}[\u6280\u6CD5\u6587\u4EF6] \u2717 filePath \u4E0D\u80FD\u4E3A\u7A7A`);
-          return { error: "filePath \u4E0D\u80FD\u4E3A\u7A7A" };
+          serverLog.skillResourceEmptyPath();
+          return { error: s.filePathRequired };
         }
         const fullPath = import_path9.default.resolve(import_path9.default.join(skillsRootDir, normalizedInputPath));
         if (!(fullPath === skillsRootDir || isPathInside(fullPath, skillsRootDir))) {
-          console.log(`\u{1F4D6}[\u6280\u6CD5\u6587\u4EF6] \u2717 \u8DEF\u5F84\u8D8A\u754C\u5DF2\u62E6\u622A\uFF1A"${filePath}" \u8D85\u51FA\u6280\u80FD\u76EE\u5F55\u8303\u56F4`);
-          return { error: "Access denied: path is outside skill directory" };
+          serverLog.skillResourcePathDenied(filePath);
+          return { error: s.pathDenied };
         }
         let body = "";
         try {
           body = await fs10.promises.readFile(fullPath, "utf-8");
-          console.log(`\u{1F4D6}[\u6280\u6CD5\u6587\u4EF6] \u2713 \u5DF2\u8BFB\u53D6\u6587\u4EF6\uFF1A ${filePath}\uFF08${body.length} \u5B57\u7B26\uFF09`);
+          serverLog.skillResourceRead(filePath, body.length);
         } catch {
-          console.log(`\u{1F4D6}[\u6280\u6CD5\u6587\u4EF6] \u2717 \u8BFB\u53D6\u5931\u8D25\uFF1A\u672A\u627E\u5230\u6587\u4EF6 "${filePath}"`);
-          return { error: `File not found: ${filePath}` };
+          serverLog.skillResourceMissing(filePath);
+          return { error: s.fileNotFound(filePath) };
         }
-        const safeBody = ensureNonEmptyBody(body, "\u8BE5\u8D44\u6E90\u6587\u4EF6\u4E3A\u7A7A\u3002");
+        const safeBody = ensureNonEmptyBody(body, s.emptyResource);
         let content = "";
         content = `<skill_content>
 `;
         content += safeBody + "\n\n";
-        content += "\u53EF\u4EE5\u4F7F\u7528 read_skill_file \u5DE5\u5177\u8BFB\u53D6\u8D44\u6E90\u6587\u4EF6\u3002\n";
+        content += s.useReadSkillFile;
         if (skillPaths.tertiarySkills.length > 0) {
           content += "\n<skill_resources>\n";
           for (const path32 of skillPaths.tertiarySkills) {
@@ -257244,6 +257331,34 @@ var tools_default = (toolCpnfig) => {
 // src/agents/productionAgent/index.ts
 var fs11 = __toESM(require("fs"));
 var import_path10 = __toESM(require("path"));
+init_getPath();
+
+// src/utils/agentRoleLabel.ts
+init_apiI18n();
+var AGENT_ROLE_KEYS = {
+  scriptCoordinator: "scriptCoordinator",
+  productionPlanner: "productionPlanner"
+};
+var ZH = {
+  scriptCoordinator: "\u7EDF\u7B79",
+  productionPlanner: "\u89C6\u9891\u7B56\u5212"
+};
+var VI = {
+  scriptCoordinator: "\u0110i\u1EC1u ph\u1ED1i",
+  productionPlanner: "L\u1EADp k\u1EBF ho\u1EA1ch video"
+};
+var EN = {
+  scriptCoordinator: "Coordinator",
+  productionPlanner: "Video planning"
+};
+function agentRoleLabel(key, locale) {
+  const loc = locale ?? getApiLocale();
+  if (isViLocale(loc)) return VI[key];
+  if (loc.startsWith("en")) return EN[key];
+  return ZH[key];
+}
+
+// src/agents/productionAgent/index.ts
 function buildMemPrompt(mem) {
   let memoryContext = "";
   if (mem.rag.length) {
@@ -257339,7 +257454,7 @@ async function createSubAgent(parentCtx) {
         createTime: new Date(subMsg.datetime).getTime()
       });
     }
-    parentCtx.msg = resTool.newMessage("assistant", "\u89C6\u9891\u7B56\u5212");
+    parentCtx.msg = resTool.newMessage("assistant", agentRoleLabel(AGENT_ROLE_KEYS.productionPlanner, parentCtx.locale));
     return fullResponse;
   }
   const promptInput = external_exports.object({
@@ -257347,7 +257462,7 @@ async function createSubAgent(parentCtx) {
   }).toJSONSchema();
   const projectInfo = await utils_default.db("o_project").where("id", resTool.data.projectId).first();
   if (!projectInfo) throw new Error(`\u9879\u76EE\u4E0D\u5B58\u5728\uFF0CID: ${resTool.data.projectId}`);
-  const artSkills = await createArtSkills(projectInfo?.artStyle, projectInfo?.directorManual);
+  const artSkills = await createArtSkills(projectInfo?.artStyle, projectInfo?.directorManual, parentCtx.locale ?? "zh-CN");
   const [_, imageModelName] = projectInfo.imageModel.split(/:(.+)/);
   const [id, videoModelName] = projectInfo.videoModel.split(/:(.+)/);
   const models = await utils_default.vendor.getModelList(id);
@@ -257448,7 +257563,7 @@ ${modelInfo}` },
       });
     }
   });
-  const productionSkills = await useProductionSkills(projectInfo?.artStyle, projectInfo?.directorManual);
+  const productionSkills = await useProductionSkills(projectInfo?.artStyle, projectInfo?.directorManual, parentCtx.locale ?? "zh-CN");
   const run_sub_agent_storyboard_panel = tool({
     description: "\u8FD0\u884C\u6267\u884CsubAgent\u6765\u5B8C\u6210\u5206\u955C\u9762\u677F\u5199\u5165\u76F8\u5173\u4EFB\u52A1",
     inputSchema: jsonSchema(promptInput),
@@ -257518,25 +257633,25 @@ ${modelInfo}` },
     run_sub_agent_supervision
   };
 }
-async function createArtSkills(artName, storyName) {
-  const artWorkerPath = utils_default.getPath(["skills", "art_skills", artName, "driector_skills"]);
-  const storyWorkerPath = utils_default.getPath(["skills", "story_skills", storyName, "driector_skills"]);
-  const skillList = [...await scanSkills(artWorkerPath + "/*.md"), ...await scanSkills(storyWorkerPath + "/*.md")];
+async function loadSkillBundle(globPaths, locale) {
+  const s = skillStrings(locale);
+  const skillList = (await Promise.all(globPaths.map((p3) => scanSkills(p3)))).flat();
   const mainSkills = [];
   for (const skillPath of skillList) {
-    if (!fs11.existsSync(skillPath)) throw new Error(`\u4E3B\u6280\u80FD\u6587\u4EF6\u4E0D\u5B58\u5728: ${skillPath}`);
+    if (!fs11.existsSync(skillPath)) throw new Error(s.mainSkillMissing(skillPath));
     const content = await fs11.promises.readFile(skillPath, "utf-8");
-    const parsed = parseFrontmatter(content);
+    const parsed = parseFrontmatter(content, locale);
     mainSkills.push({ path: skillPath, ...parsed });
   }
-  const res = {
-    prompt: `## Skills
-\u4EE5\u4E0B\u6280\u80FD\u63D0\u4F9B\u4E86\u4E13\u4E1A\u4EFB\u52A1\u7684\u4E13\u7528\u6307\u4EE4\u3002
-\u5F53\u4EFB\u52A1\u4E0E\u67D0\u4E2A\u6280\u80FD\u7684\u63CF\u8FF0\u5339\u914D\u65F6\uFF0C\u8C03\u7528 activate_skill \u5DE5\u5177\u5E76\u4F20\u5165\u6280\u80FD\u540D\u79F0\u6765\u52A0\u8F7D\u5B8C\u6574\u6307\u4EE4\u3002
-${buildSkillPrompt(mainSkills)}`,
-    tools: createSkillTools(mainSkills, { mainSkill: mainSkills, secondarySkills: [], tertiarySkills: [] })
+  return {
+    prompt: buildSkillPrompt(mainSkills, locale),
+    tools: createSkillTools(mainSkills, { mainSkill: mainSkills, secondarySkills: [], tertiarySkills: [] }, getPath_default("skills"), locale)
   };
-  return res;
+}
+async function createArtSkills(artName, storyName, locale) {
+  const artWorkerPath = utils_default.getPath(["skills", "art_skills", artName, "driector_skills"]);
+  const storyWorkerPath = utils_default.getPath(["skills", "story_skills", storyName, "driector_skills"]);
+  return loadSkillBundle([`${artWorkerPath}/*.md`, `${storyWorkerPath}/*.md`], locale);
 }
 async function consumeFullStream(fullStream, initialMsg, syncMsg) {
   let msg = initialMsg;
@@ -257589,40 +257704,11 @@ function removeAllXmlTags(text2) {
   text2 = text2.replace(/<\/?[a-zA-Z][\w-]*(\s+[^>]*)?>/g, "");
   return text2.trim();
 }
-function buildSkillPrompt(skills) {
-  const skillEntries = skills.map((s) => `  <skill>
-    <name>${s.name}</name>
-    <description>${s.description}</description>
-  </skill>`).join("\n");
-  return `
-<available_skills>
-${skillEntries}
-</available_skills>`;
-}
-async function useProductionSkills(artName, storyName) {
+async function useProductionSkills(artName, storyName, locale) {
   const artWorkerPath = utils_default.getPath(["skills", "art_skills", artName, "driector_skills"]);
   const storyWorkerPath = utils_default.getPath(["skills", "story_skills", storyName, "driector_skills"]);
   const productionPath = utils_default.getPath(["skills", "production_skills"]);
-  const skillList = [
-    ...await scanSkills(artWorkerPath + "/*.md"),
-    ...await scanSkills(storyWorkerPath + "/*.md"),
-    ...await scanSkills(productionPath + "/*.md")
-  ];
-  const mainSkills = [];
-  for (const skillPath of skillList) {
-    if (!fs11.existsSync(skillPath)) throw new Error(`\u4E3B\u6280\u80FD\u6587\u4EF6\u4E0D\u5B58\u5728: ${skillPath}`);
-    const content = await fs11.promises.readFile(skillPath, "utf-8");
-    const parsed = parseFrontmatter(content);
-    mainSkills.push({ path: skillPath, ...parsed });
-  }
-  const res = {
-    prompt: `## Skills
-\u4EE5\u4E0B\u6280\u80FD\u63D0\u4F9B\u4E86\u4E13\u4E1A\u4EFB\u52A1\u7684\u4E13\u7528\u6307\u4EE4\u3002
-\u5F53\u4EFB\u52A1\u4E0E\u67D0\u4E2A\u6280\u80FD\u7684\u63CF\u8FF0\u5339\u914D\u65F6\uFF0C\u8C03\u7528 activate_skill \u5DE5\u5177\u5E76\u4F20\u5165\u6280\u80FD\u540D\u79F0\u6765\u52A0\u8F7D\u5B8C\u6574\u6307\u4EE4\u3002
-${buildSkillPrompt(mainSkills)}`,
-    tools: createSkillTools(mainSkills, { mainSkill: mainSkills, secondarySkills: [], tertiarySkills: [] })
-  };
-  return res;
+  return loadSkillBundle([`${artWorkerPath}/*.md`, `${storyWorkerPath}/*.md`, `${productionPath}/*.md`], locale);
 }
 
 // src/socket/resTool.ts
@@ -258207,6 +258293,7 @@ var ReasoningBuilder = class {
 var resTool_default = ResTool;
 
 // src/socket/routes/productionAgent.ts
+init_serverLog();
 async function verifyToken(rawToken) {
   const setting = await utils_default.db("o_setting").where("key", "tokenKey").select("value").first();
   if (!setting) return false;
@@ -258222,19 +258309,20 @@ async function verifyToken(rawToken) {
 }
 var productionAgent_default = (nsp) => {
   nsp.on("connection", async (socket) => {
+    const locale = getSocketLocale(socket);
     const token = socket.handshake.auth.token;
     if (!token || !await verifyToken(token)) {
-      console.log("[productionAgent] \u8FDE\u63A5\u5931\u8D25\uFF0Ctoken\u65E0\u6548");
+      serverLog.agentAuthFailed("productionAgent");
       socket.disconnect();
       return;
     }
     let isolationKey = socket.handshake.auth.isolationKey;
     if (!isolationKey) {
-      console.log("[productionAgent] \u8FDE\u63A5\u5931\u8D25\uFF0C\u7F3A\u5C11 isolationKey");
+      serverLog.agentMissingKey("productionAgent");
       socket.disconnect();
       return;
     }
-    console.log("[productionAgent] \u5DF2\u8FDE\u63A5:", socket.id);
+    serverLog.agentConnected("productionAgent", socket.id);
     let resTool = new resTool_default(socket, {
       projectId: socket.handshake.auth.projectId,
       scriptId: socket.handshake.auth.scriptId
@@ -258250,7 +258338,7 @@ var productionAgent_default = (nsp) => {
         projectId: data.projectId,
         scriptId: data.scriptId
       });
-      console.log("[productionAgent] \u4E0A\u4E0B\u6587\u5DF2\u66F4\u65B0:", isolationKey);
+      serverLog.agentContextUpdated("productionAgent", isolationKey);
       callback?.({ success: true });
     });
     socket.on("chat", async (data) => {
@@ -258258,7 +258346,7 @@ var productionAgent_default = (nsp) => {
       abortController?.abort();
       abortController = new AbortController();
       const currentController = abortController;
-      const msg = resTool.newMessage("assistant", "\u89C6\u9891\u7B56\u5212");
+      const msg = resTool.newMessage("assistant", agentRoleLabel(AGENT_ROLE_KEYS.productionPlanner, locale));
       const ctx = {
         socket,
         isolationKey,
@@ -258267,7 +258355,8 @@ var productionAgent_default = (nsp) => {
         abortSignal: currentController.signal,
         resTool,
         msg,
-        thinkConfig
+        thinkConfig,
+        locale
       };
       try {
         await runDecisionAI(ctx);
@@ -258284,15 +258373,15 @@ var productionAgent_default = (nsp) => {
     socket.on("updateThinkConfig", (data) => {
       thinkConfig.think = data.think;
       thinkConfig.thinlLevel = data.thinlLevel;
-      console.log("[productionAgent] \u66F4\u65B0\u601D\u8003\u914D\u7F6E:", thinkConfig);
+      serverLog.agentThinkConfig("productionAgent", thinkConfig);
     });
     socket.on("stop", () => {
       abortController?.abort();
       abortController = null;
     });
-  });
-  nsp.on("disconnect", (socket) => {
-    console.log("[productionAgent] \u5DF2\u65AD\u5F00\u8FDE\u63A5:", socket.id);
+    socket.on("disconnect", () => {
+      serverLog.agentDisconnected("productionAgent", socket.id);
+    });
   });
 };
 
@@ -258497,7 +258586,7 @@ function createSubAgent2(parentCtx) {
         createTime: new Date(subMsg.datetime).getTime()
       });
     }
-    parentCtx.msg = resTool.newMessage("assistant", "\u89C6\u9891\u7B56\u5212");
+    parentCtx.msg = resTool.newMessage("assistant", agentRoleLabel(AGENT_ROLE_KEYS.scriptCoordinator, parentCtx.locale));
     return fullResponse;
   }
   const promptInput = external_exports.object({
@@ -258639,6 +258728,7 @@ function removeAllXmlTags2(text2) {
 }
 
 // src/socket/routes/scriptAgent.ts
+init_serverLog();
 async function verifyToken2(rawToken) {
   const setting = await utils_default.db("o_setting").where("key", "tokenKey").select("value").first();
   if (!setting) return false;
@@ -258654,19 +258744,20 @@ async function verifyToken2(rawToken) {
 }
 var scriptAgent_default = (nsp) => {
   nsp.on("connection", async (socket) => {
+    const locale = getSocketLocale(socket);
     const token = socket.handshake.auth.token;
     if (!token || !await verifyToken2(token)) {
-      console.log("[scriptAgent] \u8FDE\u63A5\u5931\u8D25\uFF0Ctoken\u65E0\u6548");
+      serverLog.agentAuthFailed("scriptAgent");
       socket.disconnect();
       return;
     }
     const isolationKey = socket.handshake.auth.isolationKey;
     if (!isolationKey) {
-      console.log("[scriptAgent] \u8FDE\u63A5\u5931\u8D25\uFF0C\u7F3A\u5C11 isolationKey");
+      serverLog.agentMissingKey("scriptAgent");
       socket.disconnect();
       return;
     }
-    console.log("[scriptAgent] \u5DF2\u8FDE\u63A5:", socket.id);
+    serverLog.agentConnected("scriptAgent", socket.id);
     const resTool = new resTool_default(socket, {
       projectId: socket.handshake.auth.projectId
     });
@@ -258680,7 +258771,7 @@ var scriptAgent_default = (nsp) => {
       abortController?.abort();
       abortController = new AbortController();
       const currentController = abortController;
-      const msg = resTool.newMessage("assistant", "\u7EDF\u7B79");
+      const msg = resTool.newMessage("assistant", agentRoleLabel(AGENT_ROLE_KEYS.scriptCoordinator, locale));
       const ctx = {
         socket,
         isolationKey,
@@ -258689,7 +258780,8 @@ var scriptAgent_default = (nsp) => {
         abortSignal: currentController.signal,
         resTool,
         msg,
-        thinkConfig
+        thinkConfig,
+        locale
       };
       try {
         await runDecisionAI2(ctx);
@@ -258707,19 +258799,20 @@ var scriptAgent_default = (nsp) => {
     socket.on("updateThinkConfig", (data) => {
       thinkConfig.think = data.think;
       thinkConfig.thinlLevel = data.thinlLevel;
-      console.log("[scriptAgent] \u66F4\u65B0\u601D\u8003\u914D\u7F6E:", thinkConfig);
+      serverLog.agentThinkConfig("scriptAgent", thinkConfig);
     });
     socket.on("stop", () => {
       abortController?.abort();
       abortController = null;
     });
-  });
-  nsp.on("disconnect", (socket) => {
-    console.log("[scriptAgent] \u5DF2\u65AD\u5F00\u8FDE\u63A5:", socket.id);
+    socket.on("disconnect", () => {
+      serverLog.agentDisconnected("scriptAgent", socket.id);
+    });
   });
 };
 
 // src/socket/index.ts
+init_serverLog();
 var socket_default = (io2) => {
   const routes = {
     productionAgent: productionAgent_default,
@@ -258728,7 +258821,7 @@ var socket_default = (io2) => {
   for (const [name28, handler] of Object.entries(routes)) {
     const nsp = io2.of(`/api/socket/${name28}`);
     handler(nsp);
-    console.log(`[Socket] \u6CE8\u518C\u547D\u540D\u7A7A\u95F4: /api/socket/${name28}`);
+    serverLog.socketNs(name28);
   }
 };
 

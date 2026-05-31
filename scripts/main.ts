@@ -228,6 +228,9 @@ app.whenReady().then(async () => {
   try {
     let servePath: string;
     if (app.isPackaged) {
+      // Packaged apps install under Program Files; use writable userData as cwd
+      // so @ai-sdk/devtools and other runtime writes avoid EPERM.
+      process.chdir(app.getPath("userData"));
       // 生产环境：让出主线程一次，确保 loading 窗口渲染后再做耗时文件拷贝
       await new Promise((r) => setTimeout(r, 0));
       initializeData();

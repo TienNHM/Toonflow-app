@@ -42,7 +42,7 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  perMachine: true
+  perMachine: false
   shortcutName: ${productName}
   artifactName: ${productName}-${version}-win-${arch}-setup.${ext}
   installerIcon: './scripts/logo.ico'
