@@ -57,6 +57,15 @@ interface VendorConfig {
   inputs: { key: string; label: string; type: "text" | "password" | "url"; required: boolean; placeholder?: string }[];
   inputValues: Record<string, string>;
   models: (TextModel | ImageModel | VideoModel | TTSModel)[];
+  i18n?: Record<
+    string,
+    {
+      name?: string;
+      description?: string;
+      inputs?: Record<string, { label?: string; placeholder?: string }>;
+      models?: Record<string, { name?: string; associationSkills?: string }>;
+    }
+  >;
 }
 
 type ReferenceList =
@@ -143,6 +152,16 @@ const vendor: VendorConfig = {
   ],
   inputValues: { apiKey: "", baseUrl: "https://api.openai.com/v1" },
   models: [{ name: "GPT-4o", modelName: "gpt-4o", type: "text", think: false }],
+  i18n: {
+    "vi-VN": {
+      name: "Mẫu trống",
+      description: "## Mẫu phát triển\n\nBạn có thể dùng mẫu này để Vibe Coding.",
+      inputs: {
+        apiKey: { label: "Khóa API" },
+        baseUrl: { label: "Địa chỉ yêu cầu", placeholder: "Ví dụ: https://api.openai.com/v1" },
+      },
+    },
+  },
 };
 
 // ============================================================

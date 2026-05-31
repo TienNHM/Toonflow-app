@@ -57,6 +57,15 @@ interface VendorConfig {
   inputs: { key: string; label: string; type: "text" | "password" | "url"; required: boolean; placeholder?: string }[];
   inputValues: Record<string, string>;
   models: (TextModel | ImageModel | VideoModel | TTSModel)[];
+  i18n?: Record<
+    string,
+    {
+      name?: string;
+      description?: string;
+      inputs?: Record<string, { label?: string; placeholder?: string }>;
+      models?: Record<string, { name?: string; associationSkills?: string }>;
+    }
+  >;
 }
 
 type ReferenceList =
@@ -269,6 +278,22 @@ const vendor: VendorConfig = {
       durationResolutionMap: [{ duration: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], resolution: ["480p", "720p", "1080p"] }],
     },
   ],
+  i18n: {
+    "vi-VN": {
+      name: "Volcano Engine (Doubao)",
+      description:
+        "Mô hình lớn Doubao của Volcano Engine, hỗ trợ văn bản, tạo ảnh, tạo video.\n\nCần lấy khóa API tại [Volcano Engine Console](https://console.volcengine.com/ark).",
+      inputs: {
+        apiKey: { label: "Khóa API", placeholder: "Volcano Engine API Key" },
+        baseUrl: { label: "Địa chỉ yêu cầu", placeholder: "Kết thúc bằng v3, ví dụ: https://ark.cn-beijing.volces.com/api/v3" },
+      },
+      models: {
+        "doubao-seedance-2-0-260128": { name: "Seedance-2.0 (Âm hình đồng sinh)" },
+        "doubao-seedance-2-0-fast-260128": { name: "Seedance-2.0-Fast (Âm hình đồng sinh)" },
+        "doubao-seedance-1-5-pro-251215": { name: "Seedance-1.5-Pro (Âm hình đồng sinh)" },
+      },
+    },
+  },
 };
 
 // ============================================================

@@ -57,6 +57,15 @@ interface VendorConfig {
   inputs: { key: string; label: string; type: "text" | "password" | "url"; required: boolean; placeholder?: string }[];
   inputValues: Record<string, string>;
   models: (TextModel | ImageModel | VideoModel | TTSModel)[];
+  i18n?: Record<
+    string,
+    {
+      name?: string;
+      description?: string;
+      inputs?: Record<string, { label?: string; placeholder?: string }>;
+      models?: Record<string, { name?: string; associationSkills?: string }>;
+    }
+  >;
 }
 
 type ReferenceList =
@@ -215,6 +224,20 @@ const vendor: VendorConfig = {
       mode: ["text", "singleImage", "multiReference"],
     },
   ],
+  i18n: {
+    "vi-VN": {
+      name: "Nền tảng chuyển tiếp chính thức Toonflow",
+      description:
+        "## Nền tảng chuyển tiếp chính thức Toonflow\n\nNền tảng chuyển tiếp chính thức Toonflow, cung cấp dịch vụ chuyển tiếp đa phương thức **văn bản, hình ảnh, video, âm thanh**, hỗ trợ kết nối nhiều nhà cung cấp mô hình lớn.\n\n🔗 [Đến nền tảng chuyển tiếp](https://api.toonflow.net/)\n\nNếu dự án hữu ích với bạn, hãy cân nhắc ủng hộ công việc phát triển của chúng tôi ☕",
+      inputs: {
+        apiKey: { label: "Khóa API" },
+      },
+      models: {
+        "Wan2.6-I2V-1080P": { name: "Wan2.6 I2V 1080P (Hỗ trợ người thật)" },
+        "Wan2.6-I2V-720P": { name: "Wan2.6 I2V 720P (Hỗ trợ người thật)" },
+      },
+    },
+  },
 };
 
 // ============================================================

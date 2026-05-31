@@ -57,6 +57,15 @@ interface VendorConfig {
   inputs: { key: string; label: string; type: "text" | "password" | "url"; required: boolean; placeholder?: string }[];
   inputValues: Record<string, string>;
   models: (TextModel | ImageModel | VideoModel | TTSModel)[];
+  i18n?: Record<
+    string,
+    {
+      name?: string;
+      description?: string;
+      inputs?: Record<string, { label?: string; placeholder?: string }>;
+      models?: Record<string, { name?: string; associationSkills?: string }>;
+    }
+  >;
 }
 
 type ReferenceList =
@@ -317,6 +326,40 @@ const vendor: VendorConfig = {
       durationResolutionMap: [{ duration: [5, 10], resolution: ["720p"] }],
     },
   ],
+  i18n: {
+    "vi-VN": {
+      name: "Kling AI",
+      description:
+        "Tạo video Kling AI\n\nHỗ trợ toàn bộ dòng mô hình video Kling, bao gồm kling-video-o1, kling-v3-omni, kling-v3, kling-v2-6, kling-v2-5-turbo, kling-v2-1, kling-v2-master, kling-v1-6, kling-v1-5, kling-v1.\n\nCần lấy Access Key và Secret Key tại [Kling AI Open Platform](https://klingai.com).",
+      inputs: {
+        accessKey: { label: "Access Key", placeholder: "Vui lòng nhập Access Key của Kling AI" },
+        secretKey: { label: "Secret Key", placeholder: "Vui lòng nhập Secret Key của Kling AI" },
+        baseUrl: { label: "Địa chỉ yêu cầu", placeholder: "Mặc định: https://api-beijing.klingai.com" },
+      },
+      models: {
+        "kling-video-o1:std": { name: "kling-video-o1 Tiêu chuẩn" },
+        "kling-video-o1:pro": { name: "kling-video-o1 Chuyên gia" },
+        "kling-v3-omni:std": { name: "kling-v3-omni Tiêu chuẩn" },
+        "kling-v3-omni:pro": { name: "kling-v3-omni Chuyên gia" },
+        "kling-v3:std": { name: "kling-v3 Tiêu chuẩn" },
+        "kling-v3:pro": { name: "kling-v3 Chuyên gia" },
+        "kling-v2-6:std": { name: "kling-v2-6 Tiêu chuẩn" },
+        "kling-v2-6:pro": { name: "kling-v2-6 Chuyên gia" },
+        "kling-v2-5-turbo:std": { name: "kling-v2-5-turbo Tiêu chuẩn" },
+        "kling-v2-5-turbo:pro": { name: "kling-v2-5-turbo Chuyên gia" },
+        "kling-v2-1:std": { name: "kling-v2-1 Tiêu chuẩn" },
+        "kling-v2-1:pro": { name: "kling-v2-1 Chuyên gia" },
+        "kling-v2-1-master:pro": { name: "kling-v2-1 Master" },
+        "kling-v2-master:pro": { name: "kling-v2 Master" },
+        "kling-v1-6:std": { name: "kling-v1-6 Tiêu chuẩn" },
+        "kling-v1-6:pro": { name: "kling-v1-6 Chuyên gia" },
+        "kling-v1-5:std": { name: "kling-v1-5 Tiêu chuẩn" },
+        "kling-v1-5:pro": { name: "kling-v1-5 Chuyên gia" },
+        "kling-v1:std": { name: "kling-v1 Tiêu chuẩn" },
+        "kling-v1:pro": { name: "kling-v1 Chuyên gia" },
+      },
+    },
+  },
 };
 
 // ============================================================

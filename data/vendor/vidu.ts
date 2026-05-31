@@ -59,6 +59,15 @@ interface VendorConfig {
   }[];
   inputValues: Record<string, string>;
   models: (TextModel | ImageModel | VideoModel)[];
+  i18n?: Record<
+    string,
+    {
+      name?: string;
+      description?: string;
+      inputs?: Record<string, { label?: string; placeholder?: string }>;
+      models?: Record<string, { name?: string; associationSkills?: string }>;
+    }
+  >;
 }
 // ==================== 全局工具函数 ====================
 //Axios实例
@@ -189,6 +198,16 @@ const vendor: VendorConfig = {
       mode: ["text", "singleImage", "multiReference"],
     },
   ],
+  i18n: {
+    "vi-VN": {
+      name: "Vidu Open Platform",
+      description: "Nền tảng tạo video chính thức Vidu. [Đến nền tảng](https://platform.vidu.cn/login/)",
+      inputs: {
+        apiKey: { label: "Khóa API", placeholder: "Vui lòng đăng ký tại Vidu chính thức" },
+        baseUrl: { label: "Đường dẫn API", placeholder: "https://api.vidu.cn/ent/v2" },
+      },
+    },
+  },
 };
 exports.vendor = vendor;
 

@@ -50,6 +50,15 @@ interface VendorConfig {
   inputs: { key: string; label: string; type: "text" | "password" | "url"; required: boolean; placeholder?: string }[];
   inputValues: Record<string, string>;
   models: (TextModel | ImageModel | VideoModel | TTSModel)[];
+  i18n?: Record<
+    string,
+    {
+      name?: string;
+      description?: string;
+      inputs?: Record<string, { label?: string; placeholder?: string }>;
+      models?: Record<string, { name?: string; associationSkills?: string }>;
+    }
+  >;
 }
 interface ImageConfig {
   prompt: string;
@@ -132,6 +141,16 @@ const vendor: VendorConfig = {
     { name: "GPT-5.2", modelName: "gpt-5.2", type: "text", think: false },
     { name: "GPT-5.4", modelName: "gpt-5.4", type: "text", think: false },
   ],
+  i18n: {
+    "vi-VN": {
+      name: "Giao diện chuẩn OpenAI",
+      description: "Giao diện định dạng chuẩn OpenAI, có thể sửa địa chỉ yêu cầu và thêm mô hình thủ công.",
+      inputs: {
+        apiKey: { label: "Khóa API" },
+        baseUrl: { label: "Địa chỉ yêu cầu", placeholder: "Kết thúc bằng v1, ví dụ: https://api.openai.com/v1" },
+      },
+    },
+  },
 };
 // ============================================================
 // 适配器函数

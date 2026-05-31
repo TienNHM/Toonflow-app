@@ -1,9 +1,11 @@
 import express from "express";
 import { success } from "@/lib/responseFormat";
 import u from "@/utils";
+import { localizeModelList, localizeVendor, resolveRequestLocale } from "@/utils/resolveVendorLocale";
 const router = express.Router();
 
 export default router.post("/", async (req, res) => {
+  const locale = resolveRequestLocale(req);
   const data = await u.db("o_vendorConfig").select("*");
 
   const list = (
@@ -14,15 +16,16 @@ export default router.post("/", async (req, res) => {
           await u.db("o_vendorConfig").where("id", item.id).delete();
           return null
         };
+        const localizedVendor = localizeVendor(vendor, locale);
         return {
           ...item,
           inputValues: JSON.parse(item.inputValues ?? "{}"),
-          models: await u.vendor.getModelList(item.id!),
+          models: await localizeModelList(item.id!, locale, u.vendor.getVendor, u.vendor.getModelList),
           code: u.vendor.getCode(item.id!),
-          description: vendor.description ?? "",
-          inputs: vendor.inputs,
+          description: localizedVendor.description ?? "",
+          inputs: localizedVendor.inputs,
           author: vendor.author,
-          name: vendor.name,
+          name: localizedVendor.name,
           version: vendor.version ?? "1.0",
         };
       }),

@@ -57,6 +57,15 @@ interface VendorConfig {
   inputs: { key: string; label: string; type: "text" | "password" | "url"; required: boolean; placeholder?: string }[];
   inputValues: Record<string, string>;
   models: (TextModel | ImageModel | VideoModel | TTSModel)[];
+  i18n?: Record<
+    string,
+    {
+      name?: string;
+      description?: string;
+      inputs?: Record<string, { label?: string; placeholder?: string }>;
+      models?: Record<string, { name?: string; associationSkills?: string }>;
+    }
+  >;
 }
 
 interface ImageConfig {
@@ -145,6 +154,17 @@ const vendor: VendorConfig = {
     { name: "DeepSeek V4 Pro", modelName: "deepseek-v4-pro", type: "text", think: true },
     { name: "DeepSeek V4 Flash", modelName: "deepseek-v4-flash", type: "text", think: true },
   ],
+  i18n: {
+    "vi-VN": {
+      name: "DeepSeek",
+      description:
+        "Giao diện chính thức DeepSeek, hỗ trợ mô hình dòng V4 và chế độ suy nghĩ (đầu ra chuỗi suy luận).\n\n[Đến nền tảng](https://platform.deepseek.com/)",
+      inputs: {
+        apiKey: { label: "Khóa API" },
+        baseUrl: { label: "Địa chỉ yêu cầu", placeholder: "Ví dụ: https://api.deepseek.com" },
+      },
+    },
+  },
 };
 
 // ============================================================

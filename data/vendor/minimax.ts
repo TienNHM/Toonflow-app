@@ -57,6 +57,15 @@ interface VendorConfig {
   inputs: { key: string; label: string; type: "text" | "password" | "url"; required: boolean; placeholder?: string }[];
   inputValues: Record<string, string>;
   models: (TextModel | ImageModel | VideoModel | TTSModel)[];
+  i18n?: Record<
+    string,
+    {
+      name?: string;
+      description?: string;
+      inputs?: Record<string, { label?: string; placeholder?: string }>;
+      models?: Record<string, { name?: string; associationSkills?: string }>;
+    }
+  >;
 }
 
 type ReferenceList =
@@ -190,6 +199,31 @@ const vendor: VendorConfig = {
       ],
     },
   ],
+  i18n: {
+    "vi-VN": {
+      name: "MiniMax (Hailuo AI)",
+      description:
+        "Giao diện chính thức MiniMax, hỗ trợ mô hình suy luận dòng M, tạo ảnh từ văn bản/ảnh tham chiếu, tạo video (văn bản → video, ảnh → video, khung đầu-cuối).\n [Đến nền tảng](https://minimaxi.com/)",
+      inputs: {
+        apiKey: { label: "Khóa API" },
+        baseUrl: { label: "Địa chỉ yêu cầu", placeholder: "Ví dụ: https://api.minimaxi.com" },
+      },
+      models: {
+        "MiniMax-M2.7": { name: "MiniMax-M2.7 (Bản suy luận)" },
+        "MiniMax-M2.7-highspeed": { name: "MiniMax-M2.7 Tốc độ cao (Bản suy luận)" },
+        "MiniMax-M2.5": { name: "MiniMax-M2.5 (Bản suy luận)" },
+        "MiniMax-M2.5-highspeed": { name: "MiniMax-M2.5 Tốc độ cao (Bản suy luận)" },
+        "MiniMax-M2.1": { name: "MiniMax-M2.1 (Bản lập trình)" },
+        "MiniMax-M2.1-highspeed": { name: "MiniMax-M2.1 Tốc độ cao (Bản lập trình)" },
+        "MiniMax-M2": { name: "MiniMax-M2 (Bản Agent)" },
+        "image-01": { name: "Hailuo Image V1" },
+        "image-01-live": { name: "Hailuo Image V1 Live", associationSkills: "Hỗ trợ phong cách tùy chỉnh" },
+        "MiniMax-Hailuo-2.3": { name: "Hailuo 2.3" },
+        "MiniMax-Hailuo-2.3-Fast": { name: "Hailuo 2.3 Tốc độ cao" },
+        "MiniMax-Hailuo-02": { name: "Hailuo 02" },
+      },
+    },
+  },
 };
 
 // ============================================================

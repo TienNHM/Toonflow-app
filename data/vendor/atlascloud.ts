@@ -62,6 +62,15 @@ interface VendorConfig {
   inputs: { key: string; label: string; type: "text" | "password" | "url"; required: boolean; placeholder?: string; disabled?: boolean }[];
   inputValues: Record<string, string>;
   models: (TextModel | ImageModel | VideoModel | TTSModel)[];
+  i18n?: Record<
+    string,
+    {
+      name?: string;
+      description?: string;
+      inputs?: Record<string, { label?: string; placeholder?: string }>;
+      models?: Record<string, { name?: string; associationSkills?: string }>;
+    }
+  >;
 }
 
 type ReferenceList =
@@ -207,6 +216,17 @@ const vendor: VendorConfig = {
       durationResolutionMap: [{ duration: [2, 3, 4, 5, 6, 7, 8, 9, 10], resolution: ["720p", "1080p"] }],
     },
   ],
+  i18n: {
+    "vi-VN": {
+      name: "AtlasCloud MASS",
+      description: "Nền tảng đa phương thức AtlasCloud tích hợp Toonflow. Mặc định điền đường dẫn văn bản, hình ảnh, video và polling theo tài liệu chính thức.",
+      inputs: {
+        apiKey: { label: "Khóa API", placeholder: "AtlasCloud API Key" },
+        chatBaseUrl: { label: "URL cơ sở văn bản", placeholder: "https://api.atlascloud.ai/v1" },
+        mediaBaseUrl: { label: "URL cơ sở media", placeholder: "https://api.atlascloud.ai/api/v1" },
+      },
+    },
+  },
 };
 
 // ============================================================

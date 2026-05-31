@@ -67,6 +67,15 @@ interface VendorConfig {
   }[];
   inputValues: Record<string, string>;
   models: (TextModel | ImageModel | VideoModel | TTSModel)[];
+  i18n?: Record<
+    string,
+    {
+      name?: string;
+      description?: string;
+      inputs?: Record<string, { label?: string; placeholder?: string }>;
+      models?: Record<string, { name?: string; associationSkills?: string }>;
+    }
+  >;
 }
 
 type ReferenceList =
@@ -200,6 +209,17 @@ const vendor: VendorConfig = {
       mode: ["text", "singleImage", "multiReference"],
     },
   ],
+  i18n: {
+    "vi-VN": {
+      name: "Grsai",
+      description:
+        "Giao diện nền tảng Grsai AI, hỗ trợ tạo ảnh từ văn bản/ảnh tham chiếu, tạo video, mô hình văn bản tương thích Gemini.\n [Đến nền tảng chuyển tiếp](https://tf.grsai.ai/zh)",
+      inputs: {
+        apiKey: { label: "Khóa API" },
+        baseUrl: { label: "Địa chỉ yêu cầu", placeholder: "Ví dụ: https://grsai.dakka.com.cn" },
+      },
+    },
+  },
 };
 
 // ============================================================
