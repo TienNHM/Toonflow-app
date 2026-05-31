@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { z, ZodTypeAny } from "zod";
+import { getApiLocale, translateApiMessage } from "@/utils/apiI18n";
 
 import { zhCN } from "zod/locales";
 
@@ -17,7 +18,7 @@ export function validateFields(
     if (!parseResult.success) {
       const errors = parseResult.error.issues.map((issue) => `字段 ${issue.path.join(".")} ${issue.message}`);
       console.error(errors);
-      return res.status(400).json({ message: "参数错误", errors });
+      return res.status(400).json({ message: translateApiMessage("参数错误", getApiLocale()), errors });
     }
     next();
   };

@@ -14,6 +14,7 @@ import u from "@/utils";
 import jwt from "jsonwebtoken";
 import socketInit from "@/socket/index";
 import { isEletron } from "@/utils/getPath";
+import { resolveRequestLocale, runWithApiLocale, translateApiMessage } from "@/utils/apiI18n";
 
 const app = express();
 const server = http.createServer(app);
@@ -58,6 +59,10 @@ export default async function startServe(randomPort: Boolean = false) {
   app.use(express.json({ limit: "100mb" }));
   app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
+  app.use((req, _res, next) => {
+    runWithApiLocale(resolveRequestLocale(req), next);
+  });
+
   // oss 静态资源
   const ossDir = u.getPath("oss");
   if (!fs.existsSync(ossDir)) {
@@ -99,7 +104,10 @@ export default async function startServe(randomPort: Boolean = false) {
 
   app.use(async (req, res, next) => {
     const setting = await u.db("o_setting").where("key", "tokenKey").select("value").first();
-    if (!setting) return res.status(444).send({ message: "服务器秘钥未配置，请联系管理员" });
+    if (!setting) {
+      const locale = resolveRequestLocale(req);
+      return res.status(444).send({ message: translateApiMessage("服务器秘钥未配置，请联系管理员", locale) });
+    }
     const { value: tokenKey } = setting;
     // 从 header 或 query 参数获取 token
     const rawToken = req.headers.authorization || (req.query.token as string) || "";
@@ -107,13 +115,15 @@ export default async function startServe(randomPort: Boolean = false) {
     // 白名单路径
     if (req.path === "/api/login/login") return next();
 
-    if (!token) return res.status(401).send({ message: "未提供token" });
+    if (!token) {
+      return res.status(401).send({ message: translateApiMessage("未提供token", resolveRequestLocale(req)) });
+    }
     try {
       const decoded = jwt.verify(token, tokenKey as string);
       (req as any).user = decoded;
       next();
     } catch (err) {
-      return res.status(401).send({ message: "无效的token" });
+      return res.status(401).send({ message: translateApiMessage("无效的token", resolveRequestLocale(req)) });
     }
   });
 

@@ -1,6 +1,6 @@
 import express from "express";
 import u from "@/utils";
-import { success } from "@/lib/responseFormat";
+import { error, success } from "@/lib/responseFormat";
 import { localizeModelList, localizeVendor, resolveRequestLocale } from "@/utils/resolveVendorLocale";
 const router = express.Router();
 
@@ -8,7 +8,7 @@ export default router.post("/", async (req, res) => {
   const locale = resolveRequestLocale(req);
   const dataList = await u.db("o_vendorConfig").select("id").where("enable", 1);
   if (!dataList || dataList.length === 0) {
-    return res.status(404).send({ error: "模型未找到" });
+    return res.status(404).send(error("未找到模型"));
   }
   const data = await Promise.all(
     dataList.map(async (item) => {
