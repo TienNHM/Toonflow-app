@@ -3,6 +3,9 @@ import u from "@/utils";
 import { Namespace, Socket } from "socket.io";
 import * as agent from "@/agents/scriptAgent/index";
 import ResTool from "@/socket/resTool";
+import { AGENT_ROLE_KEYS, agentRoleLabel } from "@/utils/agentRoleLabel";
+import { getSocketLocale } from "@/utils/runtimeLocale";
+import { serverLog } from "@/utils/serverLog";
 
 async function verifyToken(rawToken: string): Promise<Boolean> {
   const setting = await u.db("o_setting").where("key", "tokenKey").select("value").first();
@@ -20,20 +23,21 @@ async function verifyToken(rawToken: string): Promise<Boolean> {
 
 export default (nsp: Namespace) => {
   nsp.on("connection", async (socket: Socket) => {
+    const locale = getSocketLocale(socket);
     const token = socket.handshake.auth.token;
     if (!token || !(await verifyToken(token))) {
-      console.log("[scriptAgent] 连接失败，token无效");
+      serverLog.agentAuthFailed("scriptAgent");
       socket.disconnect();
       return;
     }
     const isolationKey = socket.handshake.auth.isolationKey;
     if (!isolationKey) {
-      console.log("[scriptAgent] 连接失败，缺少 isolationKey");
+      serverLog.agentMissingKey("scriptAgent");
       socket.disconnect();
       return;
     }
 
-    console.log("[scriptAgent] 已连接:", socket.id);
+    serverLog.agentConnected("scriptAgent", socket.id);
 
     const resTool = new ResTool(socket, {
       projectId: socket.handshake.auth.projectId,
@@ -51,7 +55,7 @@ export default (nsp: Namespace) => {
       abortController = new AbortController();
       const currentController = abortController;
 
-      const msg = resTool.newMessage("assistant", "统筹");
+      const msg = resTool.newMessage("assistant", agentRoleLabel(AGENT_ROLE_KEYS.scriptCoordinator, locale));
       const ctx: agent.AgentContext = {
         socket,
         isolationKey,
@@ -61,6 +65,7 @@ export default (nsp: Namespace) => {
         resTool,
         msg,
         thinkConfig,
+        locale,
       };
 
       try {
@@ -68,7 +73,7 @@ export default (nsp: Namespace) => {
       } catch (err: any) {
         if (err.name !== "AbortError" && !currentController.signal.aborted) {
           console.error("[scriptAgent] chat error:", u.error(err).message);
-          msg.error(u.error(err).message)
+          msg.error(u.error(err).message);
         }
       } finally {
         if (abortController === currentController) {
@@ -80,15 +85,16 @@ export default (nsp: Namespace) => {
     socket.on("updateThinkConfig", (data: { think: boolean; thinlLevel: 0 | 1 | 2 | 3 }) => {
       thinkConfig.think = data.think;
       thinkConfig.thinlLevel = data.thinlLevel;
-      console.log("[scriptAgent] 更新思考配置:", thinkConfig);
+      serverLog.agentThinkConfig("scriptAgent", thinkConfig);
     });
 
     socket.on("stop", () => {
       abortController?.abort();
       abortController = null;
     });
-  });
-  nsp.on("disconnect", (socket: Socket) => {
-    console.log("[scriptAgent] 已断开连接:", socket.id);
+
+    socket.on("disconnect", () => {
+      serverLog.agentDisconnected("scriptAgent", socket.id);
+    });
   });
 };

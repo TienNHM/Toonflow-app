@@ -2,6 +2,7 @@ import { app, BrowserWindow, protocol } from "electron";
 import path from "path";
 import fs from "fs";
 import Module from "module";
+import { serverLog } from "@/utils/serverLog";
 
 // 加速 Electron 启动：跳过 GPU 信息收集，减少初始化耗时
 app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
@@ -131,7 +132,7 @@ body{height:100vh;display:flex;flex-direction:column;align-items:center;justify-
   border-top-color:#000;border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 p{margin-top:20px;font-size:14px;opacity:.6}
-</style></head><body><div class="spinner"></div><p>正在启动服务…</p></body></html>`)}`;
+</style></head><body><div class="spinner"></div><p>Đang khởi động dịch vụ…</p></body></html>`)}`;
 
 function showLoading(): void {
   loadingWindow = new BrowserWindow({
@@ -273,7 +274,7 @@ app.whenReady().then(async () => {
             app.relaunch();
             app.exit(0);
           }, 500);
-          return { ok: true, message: "应用即将重启" };
+          return { ok: true, message: "App will restart shortly" };
         },
         windowismaximized: () => ({
           maximized: mainWindow?.isMaximized() ?? false,
@@ -290,12 +291,12 @@ app.whenReady().then(async () => {
             shell.openExternal(targetUrl);
             return { ok: true };
           } else {
-            return { ok: false, error: "缺少url参数" };
+            return { ok: false, error: "Missing url parameter" };
           }
         },
       };
       const handler = handlers[pathname];
-      const responseData = handler ? handler() : { error: "未知接口" };
+      const responseData = handler ? handler() : { error: "Unknown protocol handler" };
       return new Response(JSON.stringify(responseData), {
         headers: {
           "Content-Type": "application/json",
@@ -307,7 +308,7 @@ app.whenReady().then(async () => {
     // 服务启动成功，创建主窗口（主窗口 ready-to-show 时自动关闭loading）
     await createMainWindow();
   } catch (err) {
-    console.error("[服务启动失败]:", err);
+    serverLog.electronServeStartFail(err);
     await createMainWindow();
   }
 });

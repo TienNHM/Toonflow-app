@@ -7,6 +7,7 @@ import useTools from "@/agents/scriptAgent/tools";
 import ResTool from "@/socket/resTool";
 import * as fs from "fs";
 import path from "path";
+import { AGENT_ROLE_KEYS, agentRoleLabel } from "@/utils/agentRoleLabel";
 
 export interface AgentContext {
   socket: Socket;
@@ -20,6 +21,7 @@ export interface AgentContext {
     think: boolean;
     thinlLevel: 0 | 1 | 2 | 3;
   };
+  locale?: string;
 }
 
 function buildMemPrompt(mem: Awaited<ReturnType<Memory["get"]>>): string {
@@ -128,7 +130,7 @@ function createSubAgent(parentCtx: AgentContext) {
       });
     }
 
-    parentCtx.msg = resTool.newMessage("assistant", "视频策划");
+    parentCtx.msg = resTool.newMessage("assistant", agentRoleLabel(AGENT_ROLE_KEYS.scriptCoordinator, parentCtx.locale));
     return fullResponse;
   }
 

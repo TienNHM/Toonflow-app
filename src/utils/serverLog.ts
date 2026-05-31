@@ -26,4 +26,13 @@ export const serverLog = {
   extractAssetsFail: (group: string, e: unknown) => console.error(`[extractAssets] group=[${group}] failed:`, e),
   deleteManualFail: (dir: string, e: unknown) => console.error("[Delete visual manual] failed:", dir, e),
   saveFlowSortFail: (e: unknown) => console.error("[SaveFlow] storyboard sort update failed", e),
+  skillAlreadyActive: (name: string) => console.log(`[Skill] already active, skip: "${name}"`),
+  skillFileRead: (path: string, chars: number) => console.log(`[Skill] read main file: ${path} (${chars} chars)`),
+  skillFileMissing: (path: string) => console.log(`[Skill] read failed, file not found: ${path}`),
+  skillActivated: (name: string) => console.log(`[Skill] activated: "${name}"`),
+  skillResourceEmptyPath: () => console.log("[Skill] read_skill_file: filePath is empty"),
+  skillResourcePathDenied: (filePath: string) => console.log(`[Skill] path denied (outside skills dir): "${filePath}"`),
+  skillResourceRead: (filePath: string, chars: number) => console.log(`[Skill] read resource: ${filePath} (${chars} chars)`),
+  skillResourceMissing: (filePath: string) => console.log(`[Skill] resource not found: "${filePath}"`),
+  electronServeStartFail: (err: unknown) => console.error("[Electron] service start failed:", err),
 };

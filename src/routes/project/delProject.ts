@@ -3,6 +3,7 @@ import u from "@/utils";
 import { z } from "zod";
 import { success } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import { serverLog } from "@/utils/serverLog";
 const router = express.Router();
 
 // 删除项目
@@ -53,9 +54,9 @@ export default router.post(
 
     try {
       await u.oss.deleteDirectory(`${id}/`);
-      console.log(`项目 ${id} 的OSS文件夹删除成功`);
+      serverLog.projectOssDeleted(id);
     } catch (error: any) {
-      console.log(`项目 ${id} 没有对应的OSS文件夹，跳过删除`);
+      serverLog.projectOssSkipped(id);
     }
 
     res.status(200).send(success({ message: "删除项目成功" }));

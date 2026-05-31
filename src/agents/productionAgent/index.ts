@@ -3,11 +3,14 @@ import { z } from "zod";
 import { tool, jsonSchema } from "ai";
 import u from "@/utils";
 import Memory from "@/utils/agent/memory";
-import { createSkillTools, parseFrontmatter, scanSkills, useSkill } from "@/utils/agent/skillsTools";
+import { buildSkillPrompt, createSkillTools, parseFrontmatter, scanSkills } from "@/utils/agent/skillsTools";
+import { skillStrings } from "@/utils/agentSkillStrings";
 import useTools from "@/agents/productionAgent/tools";
 import ResTool from "@/socket/resTool";
 import * as fs from "fs";
 import path from "path";
+import getPath from "@/utils/getPath";
+import { AGENT_ROLE_KEYS, agentRoleLabel } from "@/utils/agentRoleLabel";
 
 export interface AgentContext {
   socket: Socket;
@@ -22,6 +25,7 @@ export interface AgentContext {
     think: boolean;
     thinlLevel: 0 | 1 | 2 | 3;
   };
+  locale?: string;
 }
 
 function buildMemPrompt(mem: Awaited<ReturnType<Memory["get"]>>): string {
@@ -133,7 +137,7 @@ async function createSubAgent(parentCtx: AgentContext) {
       });
     }
 
-    parentCtx.msg = resTool.newMessage("assistant", "视频策划");
+    parentCtx.msg = resTool.newMessage("assistant", agentRoleLabel(AGENT_ROLE_KEYS.productionPlanner, parentCtx.locale));
     return fullResponse;
   }
 
@@ -145,7 +149,7 @@ async function createSubAgent(parentCtx: AgentContext) {
 
   const projectInfo = await u.db("o_project").where("id", resTool.data.projectId).first();
   if (!projectInfo) throw new Error(`项目不存在，ID: ${resTool.data.projectId}`);
-  const artSkills = await createArtSkills(projectInfo?.artStyle!, projectInfo?.directorManual!);
+  const artSkills = await createArtSkills(projectInfo?.artStyle!, projectInfo?.directorManual!, parentCtx.locale ?? "zh-CN");
 
   const [_, imageModelName] = projectInfo.imageModel!.split(/:(.+)/);
   const [id, videoModelName] = projectInfo.videoModel!.split(/:(.+)/);
@@ -294,7 +298,7 @@ async function createSubAgent(parentCtx: AgentContext) {
   //   mainSkills.push({ path: skillPath, ...parsed });
   // }
 
-  const productionSkills = await useProductionSkills(projectInfo?.artStyle!, projectInfo?.directorManual!);
+  const productionSkills = await useProductionSkills(projectInfo?.artStyle!, projectInfo?.directorManual!, parentCtx.locale ?? "zh-CN");
 
   //分镜面板写入
   const run_sub_agent_storyboard_panel = tool({
@@ -374,25 +378,26 @@ async function createSubAgent(parentCtx: AgentContext) {
   };
 }
 
-async function createArtSkills(artName: string, storyName: string) {
-  const artWorkerPath = u.getPath(["skills", "art_skills", artName, "driector_skills"]);
-  const storyWorkerPath = u.getPath(["skills", "story_skills", storyName, "driector_skills"]);
-  const skillList = [...(await scanSkills(artWorkerPath + "/*.md")), ...(await scanSkills(storyWorkerPath + "/*.md"))];
+async function loadSkillBundle(globPaths: string[], locale: string) {
+  const s = skillStrings(locale);
+  const skillList = (await Promise.all(globPaths.map((p) => scanSkills(p)))).flat();
   const mainSkills: { path: string; name: string; description: string }[] = [];
   for (const skillPath of skillList) {
-    if (!fs.existsSync(skillPath)) throw new Error(`主技能文件不存在: ${skillPath}`);
+    if (!fs.existsSync(skillPath)) throw new Error(s.mainSkillMissing(skillPath));
     const content = await fs.promises.readFile(skillPath, "utf-8");
-    const parsed = parseFrontmatter(content);
+    const parsed = parseFrontmatter(content, locale);
     mainSkills.push({ path: skillPath, ...parsed });
   }
-  const res = {
-    prompt: `## Skills
-以下技能提供了专业任务的专用指令。
-当任务与某个技能的描述匹配时，调用 activate_skill 工具并传入技能名称来加载完整指令。
-${buildSkillPrompt(mainSkills)}`,
-    tools: createSkillTools(mainSkills, { mainSkill: mainSkills, secondarySkills: [], tertiarySkills: [] }),
+  return {
+    prompt: buildSkillPrompt(mainSkills, locale),
+    tools: createSkillTools(mainSkills, { mainSkill: mainSkills, secondarySkills: [], tertiarySkills: [] }, getPath("skills"), locale),
   };
-  return res;
+}
+
+async function createArtSkills(artName: string, storyName: string, locale: string) {
+  const artWorkerPath = u.getPath(["skills", "art_skills", artName, "driector_skills"]);
+  const storyWorkerPath = u.getPath(["skills", "story_skills", storyName, "driector_skills"]);
+  return loadSkillBundle([`${artWorkerPath}/*.md`, `${storyWorkerPath}/*.md`], locale);
 }
 async function consumeFullStream(
   fullStream: AsyncIterable<any>,
@@ -452,38 +457,9 @@ function removeAllXmlTags(text: string): string {
   return text.trim();
 }
 
-export function buildSkillPrompt(skills: { name: string; description: string }[]): string {
-  const skillEntries = skills
-    .map((s) => `  <skill>\n    <name>${s.name}</name>\n    <description>${s.description}</description>\n  </skill>`)
-    .join("\n");
-  return `
-<available_skills>
-${skillEntries}
-</available_skills>`;
-}
-
-async function useProductionSkills(artName: string, storyName: string) {
+async function useProductionSkills(artName: string, storyName: string, locale: string) {
   const artWorkerPath = u.getPath(["skills", "art_skills", artName, "driector_skills"]);
   const storyWorkerPath = u.getPath(["skills", "story_skills", storyName, "driector_skills"]);
   const productionPath = u.getPath(["skills", "production_skills"]);
-  const skillList = [
-    ...(await scanSkills(artWorkerPath + "/*.md")),
-    ...(await scanSkills(storyWorkerPath + "/*.md")),
-    ...(await scanSkills(productionPath + "/*.md")),
-  ];
-  const mainSkills: { path: string; name: string; description: string }[] = [];
-  for (const skillPath of skillList) {
-    if (!fs.existsSync(skillPath)) throw new Error(`主技能文件不存在: ${skillPath}`);
-    const content = await fs.promises.readFile(skillPath, "utf-8");
-    const parsed = parseFrontmatter(content);
-    mainSkills.push({ path: skillPath, ...parsed });
-  }
-  const res = {
-    prompt: `## Skills
-以下技能提供了专业任务的专用指令。
-当任务与某个技能的描述匹配时，调用 activate_skill 工具并传入技能名称来加载完整指令。
-${buildSkillPrompt(mainSkills)}`,
-    tools: createSkillTools(mainSkills, { mainSkill: mainSkills, secondarySkills: [], tertiarySkills: [] }),
-  };
-  return res;
+  return loadSkillBundle([`${artWorkerPath}/*.md`, `${storyWorkerPath}/*.md`, `${productionPath}/*.md`], locale);
 }

@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import { z } from "zod";
 import { error, success } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import { serverLog } from "@/utils/serverLog";
 const router = express.Router();
 
 // 删除视觉手册
@@ -31,7 +32,7 @@ export default router.post(
         }
         await fs.rm(artPromptsDir, { recursive: true, force: true });
       } catch (e) {
-        console.error("[删除视觉手册] 删除失败:", artPromptsDir, e);
+        serverLog.deleteManualFail(artPromptsDir, e);
       }
       res.status(200).send(success({ message: "删除成功" }));
     } catch (err) {

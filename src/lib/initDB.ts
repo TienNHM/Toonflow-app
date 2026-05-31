@@ -1,6 +1,7 @@
 import { Knex } from "knex";
 import { v4 as uuid } from "uuid";
 import { getEmbedding } from "@/utils/agent/embedding";
+import { serverLog } from "@/utils/serverLog";
 
 interface TableSchema {
   name: string;
@@ -1040,14 +1041,14 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
     if (!tableExists || forceInit) {
       if (tableExists && forceInit) {
         await knex.schema.dropTable(t.name);
-        console.log("[初始化数据库] 已存在表删除并重建:", t.name);
+        serverLog.initDbRecreate(t.name);
       } else {
-        console.log("[初始化数据库] 创建数据表:", t.name);
+        serverLog.initDbCreate(t.name);
       }
       await knex.schema.createTable(t.name, t.builder);
       if (t.initData) {
         await t.initData(knex);
-        console.log("[初始化数据库] 表数据初始化:", t.name);
+        serverLog.initDbSeed(t.name);
       }
     }
   }
