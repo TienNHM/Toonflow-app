@@ -15,6 +15,7 @@ import jwt from "jsonwebtoken";
 import socketInit from "@/socket/index";
 import { isEletron } from "@/utils/getPath";
 import { resolveRequestLocale, runWithApiLocale, translateApiMessage } from "@/utils/apiI18n";
+import { serverLog } from "@/utils/serverLog";
 
 const app = express();
 const server = http.createServer(app);
@@ -68,14 +69,14 @@ export default async function startServe(randomPort: Boolean = false) {
   if (!fs.existsSync(ossDir)) {
     fs.mkdirSync(ossDir, { recursive: true });
   }
-  console.log("文件目录:", ossDir);
+  serverLog.ossDir(ossDir);
   app.use("/oss", express.static(ossDir, { acceptRanges: false }));
   // skills 静态资源
   const skillsDir = u.getPath("skills");
   if (!fs.existsSync(skillsDir)) {
     fs.mkdirSync(skillsDir, { recursive: true });
   }
-  console.log("文件目录:", skillsDir);
+  serverLog.skillsDir(skillsDir);
   // 只允许图片文件访问
   app.use(
     "/skills",
@@ -90,16 +91,16 @@ export default async function startServe(randomPort: Boolean = false) {
   if (!fs.existsSync(assetsDir)) {
     fs.mkdirSync(assetsDir, { recursive: true });
   }
-  console.log("文件目录:", assetsDir);
+  serverLog.assetsDir(assetsDir);
   app.use("/assets", express.static(assetsDir, { acceptRanges: false }));
 
   // data/web 静态网站
   const webDir = u.getPath("web");
   if (fs.existsSync(webDir)) {
-    console.log("静态网站目录:", webDir);
+    serverLog.webDir(webDir);
     app.use(express.static(webDir, { acceptRanges: false }));
   } else {
-    console.warn("静态网站目录不存在:", webDir);
+    serverLog.webDirMissing(webDir);
   }
 
   app.use(async (req, res, next) => {
@@ -148,7 +149,7 @@ export default async function startServe(randomPort: Boolean = false) {
     server.listen(port, async () => {
       const address = server.address();
       const realPort = typeof address === "string" ? address : address?.port;
-      console.log(`[服务启动成功]: http://localhost:${realPort}`);
+      serverLog.serverStarted(realPort!);
       resolve(realPort);
     });
   });
@@ -160,7 +161,7 @@ export function closeServe(): Promise<void> {
     if (server) {
       server.close((err?: Error) => {
         if (err) return reject(err);
-        console.log("[服务已关闭]");
+        serverLog.serverClosed();
         resolve();
       });
     } else {

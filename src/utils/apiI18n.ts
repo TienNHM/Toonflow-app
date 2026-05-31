@@ -52,6 +52,15 @@ export function translateApiMessage(message: string, locale?: string): string {
   const vendorValidateOne = message.match(/^vendor配置校验失败: (.+)$/);
   if (vendorValidateOne) return `Xác thực cấu hình vendor thất bại: ${vendorValidateOne[1]}`;
 
+  const bindAudio = message.match(/^\[bindAudio\] 资产 (\d+) 处理失败:$/);
+  if (bindAudio) return `[bindAudio] Xử lý tài nguyên ${bindAudio[1]} thất bại:`;
+
+  const extractAssets = message.match(/^\[extractAssets\] group=\[([^\]]+)\] 提取失败:$/);
+  if (extractAssets) return `[extractAssets] nhóm=[${extractAssets[1]}] trích xuất thất bại:`;
+
+  const deleteManual = message.match(/^\[删除视觉手册\] 删除失败:$/);
+  if (deleteManual) return `[Xóa sổ tay hình ảnh] Xóa thất bại:`;
+
   return message;
 }
 

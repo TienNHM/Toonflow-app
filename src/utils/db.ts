@@ -8,12 +8,13 @@ import initDB from "@/lib/initDB";
 import type { DB } from "@/types/database";
 import crypto from "crypto";
 import fixDB from "@/lib/fixDB";
+import { serverLog } from "@/utils/serverLog";
 
 type TableName = keyof DB & string;
 type RowType<TName extends TableName> = DB[TName];
 
 const dbPath = getPath("db2.sqlite");
-console.log("数据库目录:", dbPath);
+serverLog.dbDir(dbPath);
 const dbDir = path.dirname(dbPath);
 
 // 确保数据库目录存在

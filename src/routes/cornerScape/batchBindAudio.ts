@@ -1,5 +1,6 @@
 import express from "express";
 import u from "@/utils";
+import { serverLog } from "@/utils/serverLog";
 import { z } from "zod";
 import { error, success } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
@@ -79,7 +80,7 @@ export default router.post(
         });
       } catch (e) {
         await u.db("o_assets").where("id", asset.id).update("audioBindState", "生成失败");
-        console.error(`[bindAudio] 资产 ${asset.id} 处理失败:`, e);
+        serverLog.bindAudioFail(asset.id!, e);
       }
     }
 

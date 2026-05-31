@@ -99,5 +99,7 @@
   "应用无法访问数据目录": "Ứng dụng không truy cập được thư mục dữ liệu",
   "API 404 Not Found": "API 404 Không tìm thấy",
   "更新分镜排序失败": "Cập nhật thứ tự phân cảnh thất bại",
-  "未知错误": "Lỗi không xác định"
+  "未知错误": "Lỗi không xác định",
+  "KEY无效，请重新输入": "KEY không hợp lệ, vui lòng nhập lại",
+  "未找到相关记忆": "Không tìm thấy ký ức liên quan"
 }
